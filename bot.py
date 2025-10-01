@@ -1,5 +1,8 @@
 import discord
 from discord.ext import commands
+from discord.ext import tasks
+from datetime import datetime
+from discord import TextChannel
 import re
 import os
 import random
@@ -20,6 +23,7 @@ bot = commands.Bot(command_prefix='%', intents=intents, help_command=None)
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} guilds')
+    birthday_check.start()
 
 """
 @bot.command(name='help')
@@ -143,6 +147,51 @@ async def on_message(message):
             embed = discord.Embed()
             embed.set_image(url=url)
             await message.channel.send(embed=embed)
+
+
+birthday_messages = [
+    "🎉 Happy Birthday, {mention}! You're one year closer to becoming a Discord bot yourself.",
+    "🥳 {mention}, congrats on surviving another trip around the sun!",
+    "🎂 {mention}, may your day be filled with cake and lag-free games.",
+    "🦆 {mention}, quack quack! It's your birthday! Waddle into greatness.",
+    "🎈 {mention}, you leveled up! Still waiting for those patch notes though...",
+    "🍰 Happy Birthday, {mention}! I didn't get you a gift, but I did remember. That counts, right?",
+    "🎊 {mention}, it's your special day! Now act like it until midnight.",
+    "😎 {mention}, you're older, wiser, and still hanging out with this bot. Love that for you.",
+    "🎁 {mention}, another year older... still no legendary loot. Maybe next year.",
+    "🐥 {mention}, birthdays are like bugs - they just keep coming. Enjoy the glitch!",
+]
+
+# 🎂 Hardcoded birthdays: user_id => "MM-DD"
+birthdays = {
+    507919534439530496: "05-21",
+    914389664230699038: "01-04",
+    591560009939288065: "09-02",
+    1419926344111755274: "10-08"
+}
+
+
+@tasks.loop(hours=24)
+async def birthday_check():
+    today = datetime.now().strftime("%m-%d")
+    channel = bot.get_channel(1419902888494239785) #general-chat
+
+    if channel is None:
+        print("Birthday channel not found!")
+        return
+
+    for user_id, bday in birthdays.items():
+        if bday == today:
+            try:
+                user = await bot.fetch_user(user_id)
+                message = random.choice(birthday_messages).format(mention=user.mention)
+                #await channel.send(message)
+                if isinstance(channel, TextChannel):
+                    await channel.send(message)
+                else:
+                    print("Channel is not a text channel - cannot send message.")
+            except Exception as e:
+                print(f"Failed to send birthday message for {user_id}: {e}")
 
 
 # -------------------

@@ -1,7 +1,6 @@
 import discord
-from discord.ext import commands
-from discord.ext import tasks
-from datetime import datetime
+from discord.ext import commands, tasks
+from datetime import datetime, timedelta
 from discord import TextChannel
 import re
 import os
@@ -20,6 +19,8 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='%', intents=intents, help_command=None)
 
+OWNER_ID = 507919534439530496
+GENERAL_CHAT_CHANNEL_ID = 1419902888494239785
 
 # -------------------
 # ✅ BOT READY
@@ -58,6 +59,74 @@ async def help_command(ctx):
                             inline=False)
 
     await ctx.send(embed=embed)
+
+
+# -------------------
+# %remindme
+# -------------------
+@bot.command(name="remindme")
+@commands.is_owner()
+async def remindme(ctx, date_str: str, *, reminder_message: str):
+    """
+    Reminder format:
+    !remindme 2025-12-31 18:00 "Happy New Year!"
+    """
+    try:
+        # Parse the date_str into a datetime object
+        reminder_time = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+
+        # Calculate the time difference between now and the reminder time
+        time_diff = reminder_time - datetime.now()
+
+        # If the time has already passed, notify the user
+        if time_diff.total_seconds() <= 0:
+            await ctx.send("That time is in the past! Please set a future date.")
+            return
+
+        # Wait until the reminder time
+        await asyncio.sleep(time_diff.total_seconds())
+
+        channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
+        
+        if channel and isinstance(channel, discord.TextChannel):
+            # Mention the owner in the message when the reminder time comes
+            owner = await bot.fetch_user(OWNER_ID)  # Fetch the owner by user ID
+            await channel.send(f"{owner.mention}, Reminder: {reminder_message}")
+        else:
+            print(f"Channel with ID {GENERAL_CHAT_CHANNEL_ID} not found or is not a TextChannel.")
+
+    except ValueError:
+        await ctx.send("Please use the correct format for the date: `YYYY-MM-DD HH:MM`.")
+
+
+# -------------------
+# set bot's presence
+# -------------------
+@bot.command(name="setplaying")
+@commands.is_owner()
+async def set_playing(ctx, *, status_message: str):
+    await bot.change_presence(activity=discord.Game(name=status_message))
+    await ctx.send(f"Bot is now playing: {status_message}")
+
+
+@bot.command(name="setlistening")
+@commands.is_owner()
+async def set_listening(ctx, *, status_message: str):
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=status_message))
+    await ctx.send(f"Bot is now listening to: {status_message}")
+
+@bot.command(name="setwatching")
+@commands.is_owner()
+async def set_watching(ctx, *, status_message: str):
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=status_message))
+    await ctx.send(f"Bot is now watching: {status_message}")
+
+
+@bot.command(name="setstreaming")
+@commands.is_owner()
+async def set_streaming(ctx, url: str, *, status_message: str):
+    await bot.change_presence(activity=discord.Streaming(name=status_message, url=url))
+    await ctx.send(f"Bot is now streaming: {status_message}")
 
 
 # -------------------
@@ -346,7 +415,7 @@ async def post_random_quote():
         # Choose a random quote
         quote = random.choice(quotes)
 
-        channel = bot.get_channel(1419902888494239785)  #general-chat
+        channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
 
         if channel:
             if isinstance(channel, TextChannel):
@@ -357,7 +426,7 @@ async def post_random_quote():
             print("No 'general' channel found.")
 
         # Wait for a random amount of time (e.g., between 30 minutes to 2 hours)
-        wait_time = random.randint(1800, 21600)  # Random time between 30 mins (1800 sec) and 2 hours (7200 sec)
+        wait_time = random.randint(7200, 21600)  # Random time between 2 hours (7200 sec) and 6 hours (21600 sec)
         await asyncio.sleep(wait_time)
 
 
@@ -389,7 +458,7 @@ birthdays = {
 @tasks.loop(hours=24)
 async def birthday_check():
     today = datetime.now().strftime("%m-%d")
-    channel = bot.get_channel(1419902888494239785)  #general-chat
+    channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
 
     if channel is None:
         print("Birthday channel not found!")

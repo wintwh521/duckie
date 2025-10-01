@@ -30,6 +30,13 @@ async def on_ready():
     print(f'Bot is in {len(bot.guilds)} guilds')
     birthday_check.start()
     bot.loop.create_task(post_random_quote())
+    
+    # Set the bot's presence to "Watching duck videos"
+    activity = discord.Activity(
+        type=discord.ActivityType.watching,
+        name="duck videos 🦆"
+    )
+    await bot.change_presence(activity=activity)
 
 
 # -------------------

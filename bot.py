@@ -8,6 +8,7 @@ import os
 import random
 import requests
 import difflib
+import asyncio
 from dotenv import load_dotenv
 from flask import Flask
 from threading import Thread
@@ -20,20 +21,20 @@ intents.message_content = True
 bot = commands.Bot(command_prefix='%', intents=intents, help_command=None)
 
 
+# -------------------
+# ✅ BOT READY
+# -------------------
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} guilds')
     birthday_check.start()
+    bot.loop.create_task(post_random_quote())
 
 
-"""
-@bot.command(name='help')
-async def help_command(ctx):
-    await ctx.send('just a duckie~')
-"""
-
-
+# -------------------
+# %help
+# -------------------
 @bot.command(name='help', help="Shows this help message.")
 async def help_command(ctx):
     await ctx.send("just a duckie~")
@@ -52,6 +53,9 @@ async def help_command(ctx):
     await ctx.send(embed=embed)
 
 
+# -------------------
+# %joke
+# -------------------
 @bot.command(name='joke', help="Get a random joke to brighten your day.")
 async def joke_command(ctx):
     try:
@@ -64,6 +68,9 @@ async def joke_command(ctx):
         print(f"Joke API error: {e}")
 
 
+# -------------------
+# %dame
+# -------------------
 @bot.command(name='dame', help='DAME!')
 async def sticker_command(ctx):
     sticker_id = 1420011438084194324
@@ -76,6 +83,10 @@ async def sticker_command(ctx):
         await ctx.send("Oops, I couldn't send the sticker!")
         print(f"Sticker error: {e}")
 
+
+# -------------------
+# %ask
+# -------------------
 @bot.command(name='ask',help='Ask the duckie anything - no guarantees you’ll like the answer.')
 async def ask_command(ctx, *, question: str):
     question = question.lower()
@@ -202,6 +213,9 @@ async def ask_command(ctx, *, question: str):
     await ctx.send(response)
 
 
+# -------------------
+# enlarge emojis
+# -------------------
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -221,6 +235,128 @@ async def on_message(message):
             await message.channel.send(embed=embed)
 
 
+# -------------------
+# random quotes
+# -------------------
+quotes = [
+    "“The only limit to our realization of tomorrow is our doubts of today.” – Franklin D. Roosevelt",
+    "“In the end, we will remember not the words of our enemies, but the silence of our friends.” – Martin Luther King Jr.",
+    "“Life is 10% what happens to us and 90% how we react to it.” – Charles R. Swindoll",
+    "“It always seems impossible until it's done.” – Nelson Mandela",
+    "“Believe you can and you're halfway there.” – Theodore Roosevelt",
+    "“You must be the change you wish to see in the world.” – Mahatma Gandhi",
+    "“The purpose of life is not to be happy. It is to be useful, to be honorable, to be compassionate, to have it make some difference that you have lived and lived well.” – Ralph Waldo Emerson",
+    "“You only live once, but if you do it right, once is enough.” – Mae West",
+    "“In three words I can sum up everything I've learned about life: it goes on.” – Robert Frost",
+    "“Life is really simple, but we insist on making it complicated.” – Confucius",
+
+    # Funny & Random Quotes:
+    "“I’m not arguing, I’m just explaining why I’m right... in a very loud voice.” – Unknown",
+    "“I could agree with you, but then we’d both be wrong.” – Unknown",
+    "“If at first you don’t succeed, then skydiving is not for you.” – Unknown",
+    "“Life is short. Smile while you still have teeth.” – Unknown",
+    "“A day without laughter is a day wasted... unless you’re in a library.” – Unknown",
+    "“I told my computer I needed a break, and now it won’t stop sending me ads for vacation packages.” – Unknown",
+    "“I’m on a seafood diet. I see food and I eat it.” – Unknown",
+    "“If you can’t remember my name, just say ‘hey you.’ I respond to that.” – Unknown",
+    "“I’m multitasking: I can listen, ignore, and forget all at once.” – Unknown",
+    "“The best way to predict the future is to create it… or just wing it.” – Unknown",
+
+    # Silly and Absurd Quotes:
+    "“I'm not procrastinating, I'm doing side quests.” – Unknown",
+    "“I’m not a morning person. Or an afternoon person. Let’s be real — I’m barely a person.” – Unknown",
+    "“I’m not weird, I’m just limited edition.” – Unknown",
+    "“I would agree with you, but then we’d both be wrong.” – Unknown",
+    "“If you don’t know where you’re going, any road will take you there. Or you can just get lost.” – Unknown",
+    "“I’m on a coffee break. Which means I’m just looking for the coffee.” – Unknown",
+    "“My wallet is like an onion, opening it makes me cry.” – Unknown",
+    "“I am a work in progress... which is why I’m always late.” – Unknown",
+    "“I’m reading a book on anti-gravity. It’s impossible to put down.” – Unknown",
+    "“Sometimes I drink water to surprise my liver.” – Unknown",
+    "“My phone autocorrects ‘ducking’ to ‘ducking’ and I think it’s a sign.” – Unknown",
+    "“I wonder if clouds ever look down on us and say, ‘That one’s doing it wrong.’” – Unknown",
+    "“I'm not short, I'm just concentrated awesome.” – Unknown",
+    "“I’m on a seafood diet. I see food and I eat it.” – Unknown",
+    "“I told my computer I needed a break, and now it keeps sending me ads for vacations.” – Unknown",
+    "“I’m not weird, I’m just limited edition.” – Unknown",
+    "“I am on a chocolate diet. I eat chocolate, and if I gain weight, I eat more chocolate.” – Unknown",
+    "“I’d agree with you, but then we’d both be wrong.” – Unknown",
+    "“I’m not lazy, I’m on energy-saving mode.” – Unknown",
+    "“I don’t need an inspirational quote, I need coffee.” – Unknown",
+    "“The only exercise I get is running out of time.” – Unknown",
+    "“I used to think I was indecisive, but now I’m not so sure.” – Unknown",
+    "“I'm like a cloud. When I disappear, it’s a beautiful day.” – Unknown",
+    "“I’m not clumsy, I’m just on a quest to test the durability of objects.” – Unknown",
+    "“The road to success is always under construction. So is my life.” – Unknown",
+    "“Do you ever look at someone and wonder, ‘What is going on inside their head?’ Then realize it's just random thoughts about pizza?” – Unknown",
+    "“I don’t know what I’m doing, but I’m doing it very well.” – Unknown",
+    "“My imaginary friend says you have serious issues.” – Unknown",
+    "“Life is short. Smile while you still have teeth.” – Unknown",
+    "“I would tell you a joke about a pencil, but it’s pointless.” – Unknown",
+    "“There are no mistakes in life, only happy little accidents. Like that time I accidentally locked myself out of my house in my underwear.” – Unknown",
+    "“I’m on a 30-day diet. So far, I’ve lost 15 days.” – Unknown",
+    "“Why do I never wake up early enough for breakfast? Because I’m a professional snoozer.” – Unknown",
+    "“My wallet is like an onion, opening it makes me cry.” – Unknown",
+    "“I am not a morning person. I’m barely a person, period.” – Unknown",
+    "“I tried to be normal once. Worst two minutes ever.” – Unknown",
+    "“I'm not arguing, I'm just explaining why I'm right... again.” – Unknown",
+    "“Some days I amaze myself. Other days, I put my keys in the fridge.” – Unknown",
+    "“I’m not saying I’m Batman, but have you ever seen me and Batman in the same room?” – Unknown",
+    "“Life is like a sandwich. No matter which way you flip it, the bread comes first.” – Unknown",
+    "“My favorite exercise is a cross between a lunge and a crunch. I call it lunch.” – Unknown",
+    "“You know you're getting old when the candles cost more than the cake.” – Unknown",
+    "“I put the ‘pro’ in procrastinate.” – Unknown",
+    "“I’m sorry, I can’t hear you over the sound of how awesome I am.” – Unknown",
+    "“I could agree with you, but then we’d both be wrong.” – Unknown",
+    "“If you ever feel useless, just remember that the ‘Esc’ key exists.” – Unknown",
+    "“Don't ever give up on your dreams. Keep sleeping.” – Unknown",
+    "“I don't need a hairstylist, my pillow gives me a new hairstyle every morning.” – Unknown",
+    "“I’m like a cloud. When I disappear, it’s a beautiful day.” – Unknown",
+    "“I would lose weight, but I hate losing.” – Unknown",
+    "“My diet plan: Make all my friends cupcakes. The cupcakes will be too cute to eat. This diet is working great.” – Unknown",
+    "“I have a lot of growing up to do. I realized that the other day inside my fort.” – Unknown",
+    "“I wonder what my dog named me.” – Unknown",
+    "“I’m not late. I’m just on duck time.” – Unknown",
+    "“Today I am going to be as productive as a sloth on a lazy day.” – Unknown",
+    "“I asked the librarian if the library had any books on self-help. She said they were all checked out.” – Unknown",
+    "“If you think nothing is impossible, try slamming a revolving door.” – Unknown",
+    "“I don’t need therapy. I just need to scroll through memes for a while.” – Unknown",
+    "“I’m not crazy, my reality is just different from yours.” – Unknown",
+    "“I don’t make mistakes. I make ‘creative decisions’.” – Unknown",
+    "“Procrastination is the art of keeping up with yesterday.” – Unknown",
+    "“If Monday had a face, I would punch it.” – Unknown",
+
+    # Duck-Themed Quotes for Extra Fun:
+    "“I’m not a regular duck, I’m a cool duck.” – Unknown",
+    "“Quack me up, I’m hilarious.” – Your Duckie Bot",
+    "“What did the duck say to the duckling? ‘Stop following me around, I need some space!’” – Unknown",
+    "“The early bird might get the worm, but the duck gets the bread crumbs.” – Unknown",
+    "“Quack, quack, here comes the snack.” – Your Duckie Bot"
+]
+
+async def post_random_quote():
+    while True:
+        # Choose a random quote
+        quote = random.choice(quotes)
+
+        channel = bot.get_channel(1045855123521413202)  #general-chat
+
+        if channel:
+            if isinstance(channel, TextChannel):
+                await channel.send(quote)
+            else:
+                print("Channel is not a text channel - cannot send message.")
+        else:
+            print("No 'general' channel found.")
+
+        # Wait for a random amount of time (e.g., between 30 minutes to 2 hours)
+        wait_time = random.randint(1800, 21600)  # Random time between 30 mins (1800 sec) and 2 hours (7200 sec)
+        await asyncio.sleep(wait_time)
+
+
+# -------------------
+# check brithdays
+# -------------------
 birthday_messages = [
     "🎉 Happy Birthday, {mention}! You're one year closer to becoming a Discord bot yourself.",
     "🥳 {mention}, congrats on surviving another trip around the sun!",
@@ -262,8 +398,7 @@ async def birthday_check():
                 if isinstance(channel, TextChannel):
                     await channel.send(message)
                 else:
-                    print(
-                        "Channel is not a text channel - cannot send message.")
+                    print("Channel is not a text channel - cannot send message.")
             except Exception as e:
                 print(f"Failed to send birthday message for {user_id}: {e}")
 

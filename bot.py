@@ -74,7 +74,7 @@ async def help_command(ctx):
 # -------------------
 # reminder related
 # -------------------
-# Dictionary to store active reminder tasks {user_id: asyncio.Task}
+# Dictionary to store active reminder tasks: user_id -> {"task": ..., "reminder_time": ..., "message": ...}
 active_reminders = {}
 
 @bot.command(name="addreminder")
@@ -104,8 +104,15 @@ async def addreminder(ctx, date_part: str, time_part: str, *, reminder_message: 
             existing_task.cancel()
 
         # Create and store the new reminder task
+        if ctx.author.id not in active_reminders:
+            active_reminders[ctx.author.id] = []
+            
         task = bot.loop.create_task(handle_reminder(ctx.author.id, reminder_time, reminder_message))
-        active_reminders[ctx.author.id] = task
+        active_reminders[ctx.author.id].append({
+            "task": task,
+            "reminder_time": reminder_time,
+            "message": reminder_message
+        })
 
         await ctx.send(f"Reminder set for {reminder_time.strftime('%Y-%m-%d %H:%M %Z')} - I'll remind you!")
 
@@ -131,18 +138,55 @@ async def handle_reminder(user_id: int, reminder_time: datetime, reminder_messag
         print(f"Reminder for user {user_id} was cancelled.")
     finally:
         # Clean up after the task finishes or is cancelled
-        active_reminders.pop(user_id, None)
+        reminders = active_reminders.get(user_id)
+        if reminders:
+            active_reminders[user_id] = [r for r in reminders if r["reminder_time"] != reminder_time]
+            if not active_reminders[user_id]:
+                active_reminders.pop(user_id)
 
 
 @bot.command(name="clrreminder")
 @commands.is_owner()
 async def clear_reminder(ctx):
-    task = active_reminders.get(ctx.author.id)
-    if task and not task.done():
-        task.cancel()
-        await ctx.send("Your active reminder has been cancelled.")
-    else:
+    reminders = active_reminders.get(ctx.author.id)
+    if not reminders:
         await ctx.send("You don’t have any active reminders.")
+        return
+
+    for reminder in reminders:
+        task = reminder["task"]
+        if not task.done():
+            task.cancel()
+
+    active_reminders.pop(ctx.author.id, None)
+    await ctx.send("All your active reminders have been cancelled.")
+
+
+@bot.command(name="getreminder", help="Shows your active reminders.")
+@commands.is_owner()
+async def get_reminder(ctx):
+    reminders = active_reminders.get(ctx.author.id)
+
+    if not reminders:
+        await ctx.send("You don’t have any active reminders.")
+        return
+
+    embed = discord.Embed(title="📅 Your Active Reminders", color=discord.Color.green())
+
+    now = datetime.now(tz=ZoneInfo("Asia/Singapore"))
+    for i, reminder in enumerate(reminders, start=1):
+        time_left = reminder["reminder_time"] - now
+        embed.add_field(
+            name=f"Reminder #{i}",
+            value=(
+                f"📅 Time: {reminder['reminder_time'].strftime('%Y-%m-%d %H:%M %Z')}\n"
+                f"⏳ In: {str(time_left).split('.')[0]}\n"
+                f"📝 Message: {reminder['message']}"
+            ),
+            inline=False
+        )
+
+    await ctx.send(embed=embed)
 
 
 # -------------------

@@ -98,13 +98,6 @@ async def addreminder(ctx, date_part: str, time_part: str, *, reminder_message: 
             await ctx.send("That time is in the past! Please set a future date.")
             return
 
-        # Cancel existing reminder if one is active
-        existing_tasks = active_reminders.get(ctx.author.id, [])
-        for item in existing_tasks:
-            task = item["task"]
-            if not task.done():
-                task.cancel()
-
         # Create and store the new reminder task
         if ctx.author.id not in active_reminders:
             active_reminders[ctx.author.id] = []

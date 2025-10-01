@@ -66,12 +66,14 @@ async def help_command(ctx):
 # -------------------
 @bot.command(name="remindme")
 @commands.is_owner()
-async def remindme(ctx, date_str: str, *, reminder_message: str):
+async def remindme(ctx, date_part: str, time_part: str, *, reminder_message: str):
     """
     Reminder format:
-    !remindme 2025-12-31 18:00 "Happy New Year!"
+    %remindme 2025-12-31 18:00 Happy New Year!
     """
     try:
+        date_str = f"{date_part} {time_part}"
+        
         # Parse the date_str into a datetime object
         reminder_time = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
 

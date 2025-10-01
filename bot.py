@@ -339,7 +339,7 @@ async def post_random_quote():
         # Choose a random quote
         quote = random.choice(quotes)
 
-        channel = bot.get_channel(1045855123521413202)  #general-chat
+        channel = bot.get_channel(1419902888494239785)  #general-chat
 
         if channel:
             if isinstance(channel, TextChannel):

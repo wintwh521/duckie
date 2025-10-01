@@ -99,9 +99,11 @@ async def addreminder(ctx, date_part: str, time_part: str, *, reminder_message: 
             return
 
         # Cancel existing reminder if one is active
-        existing_task = active_reminders.get(ctx.author.id)
-        if existing_task and not existing_task.done():
-            existing_task.cancel()
+        existing_tasks = active_reminders.get(ctx.author.id, [])
+        for item in existing_tasks:
+            task = item["task"]
+            if not task.done():
+                task.cancel()
 
         # Create and store the new reminder task
         if ctx.author.id not in active_reminders:

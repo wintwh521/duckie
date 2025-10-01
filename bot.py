@@ -7,6 +7,7 @@ import re
 import os
 import random
 import requests
+import difflib
 from dotenv import load_dotenv
 from flask import Flask
 from threading import Thread
@@ -25,6 +26,7 @@ async def on_ready():
     print(f'Bot is in {len(bot.guilds)} guilds')
     birthday_check.start()
 
+
 """
 @bot.command(name='help')
 async def help_command(ctx):
@@ -35,14 +37,17 @@ async def help_command(ctx):
 @bot.command(name='help', help="Shows this help message.")
 async def help_command(ctx):
     await ctx.send("just a duckie~")
-    
-    embed = discord.Embed(title="Help - List of Commands", color=discord.Color.blue())
+
+    embed = discord.Embed(title="Help - List of Commands",
+                          color=discord.Color.blue())
 
     for command in bot.commands:
         if not command.hidden:  # Skip commands marked hidden
             # command.help can be None if not set, so use fallback text
             description = command.help or "No description provided."
-            embed.add_field(name=f"%{command.name}", value=description, inline=False)
+            embed.add_field(name=f"%{command.name}",
+                            value=description,
+                            inline=False)
 
     await ctx.send(embed=embed)
 
@@ -71,62 +76,129 @@ async def sticker_command(ctx):
         await ctx.send("Oops, I couldn't send the sticker!")
         print(f"Sticker error: {e}")
 
-
-@bot.command(name='ask', help='Ask the duckie anything - no guarantees you’ll like the answer.')
+@bot.command(name='ask',help='Ask the duckie anything - no guarantees you’ll like the answer.')
 async def ask_command(ctx, *, question: str):
-    responses = [
-        "Hmm, interesting question. I'll have to think about that.",
-        "That's a tough one. Let me consult my quackbook.",
-        "Maybe. Maybe not. Maybe you should ask again later.",
-        "I'm just a duck, not a fortune teller. But hey, maybe.",
-        "Ask again when the moon is full and you're wearing a hat.",
-        "The answer is hidden in the depths of my pond. Good luck finding it.",
-        "Probably not. But who knows, right?",
-        "Yes, but only if you promise to feed me afterwards.",
-        "Definitely. I'm a duck, I know things.",
-        "No way, Jose. Unless you're asking about quacking.",
-        "Maybe. But only if you promise to be my friend.",
-        "Ask again when the stars align. Or not, I don't know astrology.",
-        "I'm not sure, but I'm sure you'll figure it out.",
-        "Yes, but only if you promise to sing me a song.",
-        "Ask again when the sun is in Leo.",
-        "Probably. But only if you promise to share your snacks with me.",
-        "Maybe. But only if you promise to be my best friend.",
-        "Ask again when the moon is in Taurus.",
-        "Quek Quek~",
-        "Oh wow, what a *totally* original question. 🙄",
-        "I'm just a duck. You expect me to know *that*?",
-        "Sounds like a tomorrow problem. Or never. Probably never.",
-        "I'll pretend I didn't hear that. For both our sakes.",
-        "You're asking **me**? Bold of you to assume I care.",
-        "That’s above my pay grade. I work for crumbs.",
-        "The answer is... buried in the sands of time. Good luck.",
-        "Have you tried Googling it like a normal person?",
-        "If I had a coin for every time someone asked that... I'd still be broke.",
-        "You know what? Yes. Just yes.",
-        "I could answer, but then I'd have to delete you.",
-        "You want answers? I want snacks. We all have dreams.",
-        "Interesting question. Here's a better one: Why are you like this?",
-        "I'm a duck, not a therapist. Though I *am* judging you.",
-        "Let me consult the Oracle of Quack... nope, nothing.",
-        "Try shaking your device. Sometimes that helps. Not here, though.",
-        "42. Still 42. Always 42.",
-        "That question gave me a headache.",
-        "I'm telling the FBI you asked that.",
-        "Even ChatGPT wouldn’t touch that one. And they let *me* talk.",
-        "Why don’t you ask your mom? Oh wait, she sent me the same question.",
-        "Wow, just wow. You really asked that out loud.",
-        "My circuits are crying.",
-        "BRB, updating my life choices after hearing that.",
-        "Ask me again and I’ll pretend to crash.",
-        "You know the answer. Deep down. Probably not, though.",
-        "Is this a riddle? Or just nonsense?",
-        "Duck mode activated: 🦆 No clue. Bye.",
-        "Wow, deep. Let me go contemplate my pond.",
-        "Sorry, I'm currently out of sarcasm. Please try again later.",
-        "I'll need at least 3 lattes to process that question.",
-    ]
-    response = random.choice(responses)
+    question = question.lower()
+
+    categories = {
+        "yes_no": {
+            "keywords": [
+                "is", "are", "was", "were", "do", "does", "can", "will", "should",
+                "would", "have", "did", "could", "has", "had", "may", "might", "must"
+            ],
+            "responses": [
+                "Yes. No. Maybe. I don't know. Can you repeat the question?",
+                "Sure, but only if you do a little dance first.",
+                "Probably, unless the ducks revolt.",
+                "Nope. Not in this reality.",
+                "Yes, but I won’t explain why. Deal with it.",
+                "Definitely. Unless it isn't. Who knows?",
+                "Ask your toaster. It's more qualified than I am.",
+                "You should know better than to trust a duck's opinion.",
+                "Yes, and also no. Enjoy the clarity.",
+                "No. But say it with confidence and people will believe you."
+            ]
+        },
+        "deep": {
+            "keywords": [
+                "meaning", "life", "love", "why", "purpose", "feel",
+                "exist", "soul", "sad", "truth"
+            ],
+            "responses": [
+                "Ah, the big questions. I’d answer, but then I’d have to cry.",
+                "The meaning of life is snacks. All else is noise.",
+                "You want purpose? I just want breadcrumbs.",
+                "Love is like a goose — unpredictable and kinda terrifying.",
+                "Existence is pain. Except for bubble tea.",
+                "Some questions are better left unanswered. Like this one.",
+                "I'm just a duck with Wi-Fi. Ask a therapist.",
+                "You feel too much. Go touch grass or pet a cat.",
+                "The truth is out there. Probably being ignored.",
+                "I have no soul. Just sarcasm and feathers."
+            ]
+        },
+        "silly": {
+            "keywords": [
+                "fart", "poop", "banana", "goose", "quack", "duck",
+                "noodle", "joke", "meme", "lol"
+            ],
+            "responses": [
+                "Quack quack... you summoned the nonsense lord?",
+                "That question was so weird, even the goose stopped hissing.",
+                "10/10. Would ask again just to confuse future AI archaeologists.",
+                "You should write that down and never show anyone.",
+                "Honestly? That made me laugh. And worry. Mostly worry.",
+                "My circuits are overheating from secondhand embarrassment.",
+                "Your brain is a beautiful mystery. Like expired yogurt.",
+                "Congratulations. You've reached peak internet.",
+                "Duck mode activated: 🦆 Processing nonsense... done.",
+                "That belongs in a museum. Of cursed questions."
+            ]
+        },
+        "tech": {
+            "keywords": [
+                "discord", "bot", "code", "python", "error", "ai",
+                "server", "login", "bug", "crash"
+            ],
+            "responses": [
+                "Did you try turning it off and on again?",
+                "Sounds like a you problem. And by you, I mean the code.",
+                "If it works, don’t touch it. If it doesn't, panic quietly.",
+                "That's not a bug. It’s a feature. Probably.",
+                "My only solution: Sacrifice a USB stick to the tech gods.",
+                "Errors are just spicy warnings.",
+                "This question requires admin privileges. Denied.",
+                "Try blaming the intern. Always works.",
+                "404: Helpful response not found.",
+                "Crashes build character. And anxiety."
+            ]
+        },
+        "food": {
+            "keywords": [
+                "eat", "food", "snack", "pizza", "bread", "cake", "cookie",
+                "hungry", "drink", "coffee"
+            ],
+            "responses": [
+                "Feed me and I might answer.",
+                "Is this a bribe? Because it's working.",
+                "I’m a duck. My entire life is about snacks.",
+                "Pizza is love. Pizza is life.",
+                "I’d do anything for cake. Anything.",
+                "Forget your question — tell me what you're eating.",
+                "Yes, I’ll take fries with that question.",
+                "Caffeine makes the answers faster. But weirder.",
+                "Ask again after snacks.",
+                "The duck is hungry. The question can wait."
+            ]
+        },
+        "default": {
+            "keywords": [],
+            "responses": [
+                "Hmm, interesting question. I'll have to think about that.",
+                "That's a tough one. Let me consult my quackbook.",
+                "Maybe. Maybe not. Maybe you should ask again later.",
+                "I'm just a duck, not a fortune teller. But hey, maybe.",
+                "Ask again when the moon is full and you're wearing a hat.",
+                "The answer is hidden in the depths of my pond. Good luck finding it.",
+                "You're asking **me**? Bold of you to assume I care.",
+                "That’s above my pay grade. I work for crumbs.",
+                "If I had a coin for every time someone asked that... I'd still be broke.",
+                "Why don’t you ask your mom? Oh wait, she sent me the same question.",
+            ]
+        }
+    }
+
+    best_match = "default"
+    highest_score = 0
+
+    for category, data in categories.items():
+        for keyword in data["keywords"]:
+            score = difflib.SequenceMatcher(None, question, keyword).ratio()
+            if score > highest_score:
+                highest_score = score
+                best_match = category
+
+    response = random.choice(categories[best_match]["responses"])
     await ctx.send(response)
 
 
@@ -174,7 +246,7 @@ birthdays = {
 @tasks.loop(hours=24)
 async def birthday_check():
     today = datetime.now().strftime("%m-%d")
-    channel = bot.get_channel(1419902888494239785) #general-chat
+    channel = bot.get_channel(1419902888494239785)  #general-chat
 
     if channel is None:
         print("Birthday channel not found!")
@@ -184,12 +256,14 @@ async def birthday_check():
         if bday == today:
             try:
                 user = await bot.fetch_user(user_id)
-                message = random.choice(birthday_messages).format(mention=user.mention)
+                message = random.choice(birthday_messages).format(
+                    mention=user.mention)
                 #await channel.send(message)
                 if isinstance(channel, TextChannel):
                     await channel.send(message)
                 else:
-                    print("Channel is not a text channel - cannot send message.")
+                    print(
+                        "Channel is not a text channel - cannot send message.")
             except Exception as e:
                 print(f"Failed to send birthday message for {user_id}: {e}")
 

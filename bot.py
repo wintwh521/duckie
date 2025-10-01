@@ -514,6 +514,33 @@ quotes = [
     "Quack, quack, here comes the snack."
 ]
 
+# Global variables to store the wait time bounds
+lower_bound = 10800  # default 3 hours
+upper_bound = 21600  # default 6 hours
+
+
+@bot.command(name='setquoteint')
+@commands.is_owner()
+async def setquoteint(ctx, lower: int, upper: int):
+    """Set the time interval for random quotes"""
+    global lower_bound, upper_bound
+
+    if lower >= upper:
+        await ctx.send("The lower bound must be less than the upper bound!")
+        return
+
+    lower_bound = lower
+    upper_bound = upper
+    await ctx.send(f"Quote interval updated! Lower bound: {lower_bound} seconds, Upper bound: {upper_bound} seconds.")
+
+
+@bot.command(name='getquoteint')
+@commands.is_owner()
+async def getquoteint(ctx):
+    """Get the current time interval for random quotes"""
+    await ctx.send(f"Lower bound: {lower_bound}, Upper bound: {upper_bound}")
+
+
 async def post_random_quote():
     while True:
         # Choose a random quote
@@ -529,8 +556,8 @@ async def post_random_quote():
         else:
             print("No 'general' channel found.")
 
-        # Wait for a random amount of time (e.g., between 30 minutes to 2 hours)
-        wait_time = random.randint(7200, 21600)  # Random time between 2 hours (7200 sec) and 6 hours (21600 sec)
+        # Wait for a random amount of time
+        wait_time = random.randint(lower_bound, upper_bound)
         await asyncio.sleep(wait_time)
 
 

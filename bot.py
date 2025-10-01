@@ -146,6 +146,24 @@ async def clear_reminder(ctx):
 
 
 # -------------------
+# %post
+# -------------------
+@bot.command(name="post")
+@commands.is_owner()
+async def post(ctx, channel_id: int, *, message: str):
+    """
+    Bot sends message to a specified channel by ID.
+    Usage: %post 123456789012345678 Hello everyone!
+    """
+    channel = bot.get_channel(channel_id)
+    if channel and isinstance(channel, discord.TextChannel):
+        await channel.send(message)
+        await ctx.send(f"Message sent to {channel.mention}")
+    else:
+        await ctx.send("Invalid channel ID.")
+
+
+# -------------------
 # set bot's presence
 # -------------------
 @bot.command(name="setplaying")

@@ -1,16 +1,21 @@
-import discord
-from discord.ext import commands, tasks
-from datetime import datetime, timedelta
-from discord import TextChannel
-import re
 import os
+import re
 import random
-import requests
-import difflib
 import asyncio
+import difflib
+from threading import Thread
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import requests
 from dotenv import load_dotenv
 from flask import Flask
-from threading import Thread
+
+import discord
+from discord import TextChannel
+from discord.ext import commands, tasks
+from discord.ext.commands import is_owner
+
 
 load_dotenv()
 
@@ -51,54 +56,93 @@ async def help_command(ctx):
                           color=discord.Color.blue())
 
     for command in bot.commands:
-        if not command.hidden:  # Skip commands marked hidden
-            # command.help can be None if not set, so use fallback text
-            description = command.help or "No description provided."
-            embed.add_field(name=f"%{command.name}",
-                            value=description,
-                            inline=False)
+        if command.hidden:
+            continue
+
+        # Skip commands that require owner only, but only if the ctx.author is NOT the owner
+        if is_owner in command.checks and ctx.author.id != OWNER_ID:
+            continue
+
+        description = command.help or "No description provided."
+        embed.add_field(name=f"%{command.name}",
+                        value=description,
+                        inline=False)
 
     await ctx.send(embed=embed)
 
 
 # -------------------
-# %remindme
+# reminder related
 # -------------------
-@bot.command(name="remindme")
+# Dictionary to store active reminder tasks {user_id: asyncio.Task}
+active_reminders = {}
+
+@bot.command(name="addreminder")
 @commands.is_owner()
-async def remindme(ctx, date_part: str, time_part: str, *, reminder_message: str):
+async def addreminder(ctx, date_part: str, time_part: str, *, reminder_message: str):
     """
     Reminder format:
-    %remindme 2025-12-31 18:00 Happy New Year!
+    %addreminder 2025-12-31 18:00 Happy New Year!
     """
     try:
         date_str = f"{date_part} {time_part}"
-        
-        # Parse the date_str into a datetime object
-        reminder_time = datetime.strptime(date_str, "%Y-%m-%d %H:%M")
+        local_timezone = ZoneInfo("Asia/Singapore")
 
-        # Calculate the time difference between now and the reminder time
-        time_diff = reminder_time - datetime.now()
+        # Parse and make timezone-aware
+        reminder_time = datetime.strptime(date_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_timezone)
+        now = datetime.now(tz=local_timezone)
 
-        # If the time has already passed, notify the user
-        if time_diff.total_seconds() <= 0:
+        time_diff = (reminder_time - now).total_seconds()
+
+        if time_diff <= 0:
             await ctx.send("That time is in the past! Please set a future date.")
             return
 
-        # Wait until the reminder time
-        await asyncio.sleep(time_diff.total_seconds())
+        # Cancel existing reminder if one is active
+        existing_task = active_reminders.get(ctx.author.id)
+        if existing_task and not existing_task.done():
+            existing_task.cancel()
+
+        # Create and store the new reminder task
+        task = bot.loop.create_task(handle_reminder(ctx.author.id, reminder_time, reminder_message))
+        active_reminders[ctx.author.id] = task
+
+        await ctx.send(f"Reminder set for {reminder_time.strftime('%Y-%m-%d %H:%M %Z')} - I'll remind you!")
+
+    except ValueError:
+        await ctx.send("Please use the correct format for the date: `YYYY-MM-DD HH:MM`.")
+
+
+async def handle_reminder(user_id: int, reminder_time: datetime, reminder_message: str):
+    try:
+        now = datetime.now(tz=ZoneInfo("Asia/Singapore"))
+        time_diff = (reminder_time - now).total_seconds()
+
+        await asyncio.sleep(time_diff)
 
         channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
-        
         if channel and isinstance(channel, discord.TextChannel):
-            # Mention the owner in the message when the reminder time comes
-            owner = await bot.fetch_user(OWNER_ID)  # Fetch the owner by user ID
+            owner = await bot.fetch_user(OWNER_ID)
             await channel.send(f"{owner.mention}, Reminder: {reminder_message}")
         else:
             print(f"Channel with ID {GENERAL_CHAT_CHANNEL_ID} not found or is not a TextChannel.")
 
-    except ValueError:
-        await ctx.send("Please use the correct format for the date: `YYYY-MM-DD HH:MM`.")
+    except asyncio.CancelledError:
+        print(f"Reminder for user {user_id} was cancelled.")
+    finally:
+        # Clean up after the task finishes or is cancelled
+        active_reminders.pop(user_id, None)
+
+
+@bot.command(name="clrreminder")
+@commands.is_owner()
+async def clear_reminder(ctx):
+    task = active_reminders.get(ctx.author.id)
+    if task and not task.done():
+        task.cancel()
+        await ctx.send("Your active reminder has been cancelled.")
+    else:
+        await ctx.send("You don’t have any active reminders.")
 
 
 # -------------------
@@ -317,99 +361,100 @@ async def on_message(message):
 # random quotes
 # -------------------
 quotes = [
-    "“The only limit to our realization of tomorrow is our doubts of today.” – Franklin D. Roosevelt",
-    "“In the end, we will remember not the words of our enemies, but the silence of our friends.” – Martin Luther King Jr.",
-    "“Life is 10% what happens to us and 90% how we react to it.” – Charles R. Swindoll",
-    "“It always seems impossible until it's done.” – Nelson Mandela",
-    "“Believe you can and you're halfway there.” – Theodore Roosevelt",
-    "“You must be the change you wish to see in the world.” – Mahatma Gandhi",
-    "“The purpose of life is not to be happy. It is to be useful, to be honorable, to be compassionate, to have it make some difference that you have lived and lived well.” – Ralph Waldo Emerson",
-    "“You only live once, but if you do it right, once is enough.” – Mae West",
-    "“In three words I can sum up everything I've learned about life: it goes on.” – Robert Frost",
-    "“Life is really simple, but we insist on making it complicated.” – Confucius",
+    # Meaningful
+    "The only limit to our realization of tomorrow is our doubts of today.",
+    "In the end, we will remember not the words of our enemies, but the silence of our friends.",
+    "Life is 10% what happens to us and 90% how we react to it.",
+    "It always seems impossible until it's done.",
+    "Believe you can and you're halfway there.",
+    "You must be the change you wish to see in the world.",
+    "The purpose of life is not to be happy. It is to be useful, to be honorable, to be compassionate, to have it make some difference that you have lived and lived well.",
+    "You only live once, but if you do it right, once is enough.",
+    "In three words I can sum up everything I've learned about life: it goes on.",
+    "Life is really simple, but we insist on making it complicated.",
 
     # Funny & Random Quotes:
-    "“I’m not arguing, I’m just explaining why I’m right... in a very loud voice.” – Unknown",
-    "“I could agree with you, but then we’d both be wrong.” – Unknown",
-    "“If at first you don’t succeed, then skydiving is not for you.” – Unknown",
-    "“Life is short. Smile while you still have teeth.” – Unknown",
-    "“A day without laughter is a day wasted... unless you’re in a library.” – Unknown",
-    "“I told my computer I needed a break, and now it won’t stop sending me ads for vacation packages.” – Unknown",
-    "“I’m on a seafood diet. I see food and I eat it.” – Unknown",
-    "“If you can’t remember my name, just say ‘hey you.’ I respond to that.” – Unknown",
-    "“I’m multitasking: I can listen, ignore, and forget all at once.” – Unknown",
-    "“The best way to predict the future is to create it… or just wing it.” – Unknown",
+    "I’m not arguing, I’m just explaining why I’m right... in a very loud voice.",
+    "I could agree with you, but then we’d both be wrong.",
+    "If at first you don’t succeed, then skydiving is not for you.",
+    "Life is short. Smile while you still have teeth.",
+    "A day without laughter is a day wasted... unless you’re in a library.",
+    "I told my computer I needed a break, and now it won’t stop sending me ads for vacation packages.",
+    "I’m on a seafood diet. I see food and I eat it.",
+    "If you can’t remember my name, just say ‘hey you.’ I respond to that.",
+    "I’m multitasking: I can listen, ignore, and forget all at once.",
+    "The best way to predict the future is to create it… or just wing it.",
 
     # Silly and Absurd Quotes:
-    "“I'm not procrastinating, I'm doing side quests.” – Unknown",
-    "“I’m not a morning person. Or an afternoon person. Let’s be real — I’m barely a person.” – Unknown",
-    "“I’m not weird, I’m just limited edition.” – Unknown",
-    "“I would agree with you, but then we’d both be wrong.” – Unknown",
-    "“If you don’t know where you’re going, any road will take you there. Or you can just get lost.” – Unknown",
-    "“I’m on a coffee break. Which means I’m just looking for the coffee.” – Unknown",
-    "“My wallet is like an onion, opening it makes me cry.” – Unknown",
-    "“I am a work in progress... which is why I’m always late.” – Unknown",
-    "“I’m reading a book on anti-gravity. It’s impossible to put down.” – Unknown",
-    "“Sometimes I drink water to surprise my liver.” – Unknown",
-    "“My phone autocorrects ‘ducking’ to ‘ducking’ and I think it’s a sign.” – Unknown",
-    "“I wonder if clouds ever look down on us and say, ‘That one’s doing it wrong.’” – Unknown",
-    "“I'm not short, I'm just concentrated awesome.” – Unknown",
-    "“I’m on a seafood diet. I see food and I eat it.” – Unknown",
-    "“I told my computer I needed a break, and now it keeps sending me ads for vacations.” – Unknown",
-    "“I’m not weird, I’m just limited edition.” – Unknown",
-    "“I am on a chocolate diet. I eat chocolate, and if I gain weight, I eat more chocolate.” – Unknown",
-    "“I’d agree with you, but then we’d both be wrong.” – Unknown",
-    "“I’m not lazy, I’m on energy-saving mode.” – Unknown",
-    "“I don’t need an inspirational quote, I need coffee.” – Unknown",
-    "“The only exercise I get is running out of time.” – Unknown",
-    "“I used to think I was indecisive, but now I’m not so sure.” – Unknown",
-    "“I'm like a cloud. When I disappear, it’s a beautiful day.” – Unknown",
-    "“I’m not clumsy, I’m just on a quest to test the durability of objects.” – Unknown",
-    "“The road to success is always under construction. So is my life.” – Unknown",
-    "“Do you ever look at someone and wonder, ‘What is going on inside their head?’ Then realize it's just random thoughts about pizza?” – Unknown",
-    "“I don’t know what I’m doing, but I’m doing it very well.” – Unknown",
-    "“My imaginary friend says you have serious issues.” – Unknown",
-    "“Life is short. Smile while you still have teeth.” – Unknown",
-    "“I would tell you a joke about a pencil, but it’s pointless.” – Unknown",
-    "“There are no mistakes in life, only happy little accidents. Like that time I accidentally locked myself out of my house in my underwear.” – Unknown",
-    "“I’m on a 30-day diet. So far, I’ve lost 15 days.” – Unknown",
-    "“Why do I never wake up early enough for breakfast? Because I’m a professional snoozer.” – Unknown",
-    "“My wallet is like an onion, opening it makes me cry.” – Unknown",
-    "“I am not a morning person. I’m barely a person, period.” – Unknown",
-    "“I tried to be normal once. Worst two minutes ever.” – Unknown",
-    "“I'm not arguing, I'm just explaining why I'm right... again.” – Unknown",
-    "“Some days I amaze myself. Other days, I put my keys in the fridge.” – Unknown",
-    "“I’m not saying I’m Batman, but have you ever seen me and Batman in the same room?” – Unknown",
-    "“Life is like a sandwich. No matter which way you flip it, the bread comes first.” – Unknown",
-    "“My favorite exercise is a cross between a lunge and a crunch. I call it lunch.” – Unknown",
-    "“You know you're getting old when the candles cost more than the cake.” – Unknown",
-    "“I put the ‘pro’ in procrastinate.” – Unknown",
-    "“I’m sorry, I can’t hear you over the sound of how awesome I am.” – Unknown",
-    "“I could agree with you, but then we’d both be wrong.” – Unknown",
-    "“If you ever feel useless, just remember that the ‘Esc’ key exists.” – Unknown",
-    "“Don't ever give up on your dreams. Keep sleeping.” – Unknown",
-    "“I don't need a hairstylist, my pillow gives me a new hairstyle every morning.” – Unknown",
-    "“I’m like a cloud. When I disappear, it’s a beautiful day.” – Unknown",
-    "“I would lose weight, but I hate losing.” – Unknown",
-    "“My diet plan: Make all my friends cupcakes. The cupcakes will be too cute to eat. This diet is working great.” – Unknown",
-    "“I have a lot of growing up to do. I realized that the other day inside my fort.” – Unknown",
-    "“I wonder what my dog named me.” – Unknown",
-    "“I’m not late. I’m just on duck time.” – Unknown",
-    "“Today I am going to be as productive as a sloth on a lazy day.” – Unknown",
-    "“I asked the librarian if the library had any books on self-help. She said they were all checked out.” – Unknown",
-    "“If you think nothing is impossible, try slamming a revolving door.” – Unknown",
-    "“I don’t need therapy. I just need to scroll through memes for a while.” – Unknown",
-    "“I’m not crazy, my reality is just different from yours.” – Unknown",
-    "“I don’t make mistakes. I make ‘creative decisions’.” – Unknown",
-    "“Procrastination is the art of keeping up with yesterday.” – Unknown",
-    "“If Monday had a face, I would punch it.” – Unknown",
+    "I'm not procrastinating, I'm doing side quests.",
+    "I’m not a morning person. Or an afternoon person. Let’s be real — I’m barely a person.",
+    "I’m not weird, I’m just limited edition.",
+    "I would agree with you, but then we’d both be wrong.",
+    "If you don’t know where you’re going, any road will take you there. Or you can just get lost.",
+    "I’m on a coffee break. Which means I’m just looking for the coffee.",
+    "My wallet is like an onion, opening it makes me cry.",
+    "I am a work in progress... which is why I’m always late.",
+    "I’m reading a book on anti-gravity. It’s impossible to put down.",
+    "Sometimes I drink water to surprise my liver.",
+    "My phone autocorrects ‘ducking’ to ‘ducking’ and I think it’s a sign.",
+    "I wonder if clouds ever look down on us and say, ‘That one’s doing it wrong.’",
+    "I'm not short, I'm just concentrated awesome.",
+    "I’m on a seafood diet. I see food and I eat it.",
+    "I told my computer I needed a break, and now it keeps sending me ads for vacations.",
+    "I’m not weird, I’m just limited edition.",
+    "I am on a chocolate diet. I eat chocolate, and if I gain weight, I eat more chocolate.",
+    "I’d agree with you, but then we’d both be wrong.",
+    "I’m not lazy, I’m on energy-saving mode.",
+    "I don’t need an inspirational quote, I need coffee.",
+    "The only exercise I get is running out of time.",
+    "I used to think I was indecisive, but now I’m not so sure.",
+    "I'm like a cloud. When I disappear, it’s a beautiful day.",
+    "I’m not clumsy, I’m just on a quest to test the durability of objects.",
+    "The road to success is always under construction. So is my life.",
+    "Do you ever look at someone and wonder, ‘What is going on inside their head?’ Then realize it's just random thoughts about pizza?",
+    "I don’t know what I’m doing, but I’m doing it very well.",
+    "My imaginary friend says you have serious issues.",
+    "Life is short. Smile while you still have teeth.",
+    "I would tell you a joke about a pencil, but it’s pointless.",
+    "There are no mistakes in life, only happy little accidents. Like that time I accidentally locked myself out of my house in my underwear.",
+    "I’m on a 30-day diet. So far, I’ve lost 15 days.",
+    "Why do I never wake up early enough for breakfast? Because I’m a professional snoozer.",
+    "My wallet is like an onion, opening it makes me cry.",
+    "I am not a morning person. I’m barely a person, period.",
+    "I tried to be normal once. Worst two minutes ever.",
+    "I'm not arguing, I'm just explaining why I'm right... again.",
+    "Some days I amaze myself. Other days, I put my keys in the fridge.",
+    "I’m not saying I’m Batman, but have you ever seen me and Batman in the same room?",
+    "Life is like a sandwich. No matter which way you flip it, the bread comes first.",
+    "My favorite exercise is a cross between a lunge and a crunch. I call it lunch.",
+    "You know you're getting old when the candles cost more than the cake.",
+    "I put the ‘pro’ in procrastinate.",
+    "I’m sorry, I can’t hear you over the sound of how awesome I am.",
+    "I could agree with you, but then we’d both be wrong.",
+    "If you ever feel useless, just remember that the ‘Esc’ key exists.",
+    "Don't ever give up on your dreams. Keep sleeping.",
+    "I don't need a hairstylist, my pillow gives me a new hairstyle every morning.",
+    "I’m like a cloud. When I disappear, it’s a beautiful day.",
+    "I would lose weight, but I hate losing.",
+    "My diet plan: Make all my friends cupcakes. The cupcakes will be too cute to eat. This diet is working great.",
+    "I have a lot of growing up to do. I realized that the other day inside my fort.",
+    "I wonder what my dog named me.",
+    "I’m not late. I’m just on duck time.",
+    "Today I am going to be as productive as a sloth on a lazy day.",
+    "I asked the librarian if the library had any books on self-help. She said they were all checked out.",
+    "If you think nothing is impossible, try slamming a revolving door.",
+    "I don’t need therapy. I just need to scroll through memes for a while.",
+    "I’m not crazy, my reality is just different from yours.",
+    "I don’t make mistakes. I make ‘creative decisions’.",
+    "Procrastination is the art of keeping up with yesterday.",
+    "If Monday had a face, I would punch it.",
 
     # Duck-Themed Quotes for Extra Fun:
-    "“I’m not a regular duck, I’m a cool duck.” – Unknown",
-    "“Quack me up, I’m hilarious.” – Your Duckie Bot",
-    "“What did the duck say to the duckling? ‘Stop following me around, I need some space!’” – Unknown",
-    "“The early bird might get the worm, but the duck gets the bread crumbs.” – Unknown",
-    "“Quack, quack, here comes the snack.” – Your Duckie Bot"
+    "I’m not a regular duck, I’m a cool duck.",
+    "Quack me up, I’m hilarious.",
+    "What did the duck say to the duckling? ‘Stop following me around, I need some space!’",
+    "The early bird might get the worm, but the duck gets the bread crumbs.",
+    "Quack, quack, here comes the snack."
 ]
 
 async def post_random_quote():

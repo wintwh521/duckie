@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import re
 import os
+import random
 import requests
 from dotenv import load_dotenv
 from flask import Flask
@@ -65,6 +66,64 @@ async def sticker_command(ctx):
     except Exception as e:
         await ctx.send("Oops, I couldn't send the sticker!")
         print(f"Sticker error: {e}")
+
+
+@bot.command(name='ask', help='Ask the duckie anything - no guarantees you’ll like the answer.')
+async def ask_command(ctx, *, question: str):
+    responses = [
+        "Hmm, interesting question. I'll have to think about that.",
+        "That's a tough one. Let me consult my quackbook.",
+        "Maybe. Maybe not. Maybe you should ask again later.",
+        "I'm just a duck, not a fortune teller. But hey, maybe.",
+        "Ask again when the moon is full and you're wearing a hat.",
+        "The answer is hidden in the depths of my pond. Good luck finding it.",
+        "Probably not. But who knows, right?",
+        "Yes, but only if you promise to feed me afterwards.",
+        "Definitely. I'm a duck, I know things.",
+        "No way, Jose. Unless you're asking about quacking.",
+        "Maybe. But only if you promise to be my friend.",
+        "Ask again when the stars align. Or not, I don't know astrology.",
+        "I'm not sure, but I'm sure you'll figure it out.",
+        "Yes, but only if you promise to sing me a song.",
+        "Ask again when the sun is in Leo.",
+        "Probably. But only if you promise to share your snacks with me.",
+        "Maybe. But only if you promise to be my best friend.",
+        "Ask again when the moon is in Taurus.",
+        "Quek Quek~",
+        "Oh wow, what a *totally* original question. 🙄",
+        "I'm just a duck. You expect me to know *that*?",
+        "Sounds like a tomorrow problem. Or never. Probably never.",
+        "I'll pretend I didn't hear that. For both our sakes.",
+        "You're asking **me**? Bold of you to assume I care.",
+        "That’s above my pay grade. I work for crumbs.",
+        "The answer is... buried in the sands of time. Good luck.",
+        "Have you tried Googling it like a normal person?",
+        "If I had a coin for every time someone asked that... I'd still be broke.",
+        "You know what? Yes. Just yes.",
+        "I could answer, but then I'd have to delete you.",
+        "You want answers? I want snacks. We all have dreams.",
+        "Interesting question. Here's a better one: Why are you like this?",
+        "I'm a duck, not a therapist. Though I *am* judging you.",
+        "Let me consult the Oracle of Quack... nope, nothing.",
+        "Try shaking your device. Sometimes that helps. Not here, though.",
+        "42. Still 42. Always 42.",
+        "That question gave me a headache.",
+        "I'm telling the FBI you asked that.",
+        "Even ChatGPT wouldn’t touch that one. And they let *me* talk.",
+        "Why don’t you ask your mom? Oh wait, she sent me the same question.",
+        "Wow, just wow. You really asked that out loud.",
+        "My circuits are crying.",
+        "BRB, updating my life choices after hearing that.",
+        "Ask me again and I’ll pretend to crash.",
+        "You know the answer. Deep down. Probably not, though.",
+        "Is this a riddle? Or just nonsense?",
+        "Duck mode activated: 🦆 No clue. Bye.",
+        "Wow, deep. Let me go contemplate my pond.",
+        "Sorry, I'm currently out of sarcasm. Please try again later.",
+        "I'll need at least 3 lattes to process that question.",
+    ]
+    response = random.choice(responses)
+    await ctx.send(response)
 
 
 @bot.event

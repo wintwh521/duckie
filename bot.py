@@ -4,10 +4,12 @@ import random
 import asyncio
 import difflib
 from threading import Thread
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
+import pyfiglet
+import wikipedia
 from dotenv import load_dotenv
 from flask import Flask
 
@@ -15,7 +17,6 @@ import discord
 from discord import TextChannel
 from discord.ext import commands, tasks
 from discord.ext.commands import is_owner
-
 
 load_dotenv()
 
@@ -27,6 +28,7 @@ bot = commands.Bot(command_prefix='%', intents=intents, help_command=None)
 OWNER_ID = 507919534439530496
 GENERAL_CHAT_CHANNEL_ID = 1419902888494239785
 
+
 # -------------------
 # ✅ BOT READY
 # -------------------
@@ -36,12 +38,10 @@ async def on_ready():
     print(f'Bot is in {len(bot.guilds)} guilds')
     birthday_check.start()
     bot.loop.create_task(post_random_quote())
-    
+
     # Set the bot's presence to "Watching duck videos"
-    activity = discord.Activity(
-        type=discord.ActivityType.watching,
-        name="duck videos 🦆"
-    )
+    activity = discord.Activity(type=discord.ActivityType.watching,
+                                name="duck videos 🦆")
     await bot.change_presence(activity=activity)
 
 
@@ -77,9 +77,11 @@ async def help_command(ctx):
 # Dictionary to store active reminder tasks: user_id -> {"task": ..., "reminder_time": ..., "message": ...}
 active_reminders = {}
 
-@bot.command(name="addreminder")
+
+@bot.command(name="addreminder", help='Add reminder. Format: %addreminder YYYY-MM-DD HH:MM Message')
 @commands.is_owner()
-async def addreminder(ctx, date_part: str, time_part: str, *, reminder_message: str):
+async def addreminder(ctx, date_part: str, time_part: str, *,
+                      reminder_message: str):
     """
     Reminder format:
     %addreminder 2025-12-31 18:00 Happy New Year!
@@ -89,33 +91,40 @@ async def addreminder(ctx, date_part: str, time_part: str, *, reminder_message: 
         local_timezone = ZoneInfo("Asia/Singapore")
 
         # Parse and make timezone-aware
-        reminder_time = datetime.strptime(date_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_timezone)
+        reminder_time = datetime.strptime(
+            date_str, "%Y-%m-%d %H:%M").replace(tzinfo=local_timezone)
         now = datetime.now(tz=local_timezone)
 
         time_diff = (reminder_time - now).total_seconds()
 
         if time_diff <= 0:
-            await ctx.send("That time is in the past! Please set a future date.")
+            await ctx.send(
+                "That time is in the past! Please set a future date.")
             return
 
         # Create and store the new reminder task
         if ctx.author.id not in active_reminders:
             active_reminders[ctx.author.id] = []
-            
-        task = bot.loop.create_task(handle_reminder(ctx.author.id, reminder_time, reminder_message))
+
+        task = bot.loop.create_task(
+            handle_reminder(ctx.author.id, reminder_time, reminder_message))
         active_reminders[ctx.author.id].append({
             "task": task,
             "reminder_time": reminder_time,
             "message": reminder_message
         })
 
-        await ctx.send(f"Reminder set for {reminder_time.strftime('%Y-%m-%d %H:%M %Z')} - I'll remind you!")
+        await ctx.send(
+            f"Reminder set for {reminder_time.strftime('%Y-%m-%d %H:%M %Z')} - I'll remind you!"
+        )
 
     except ValueError:
-        await ctx.send("Please use the correct format for the date: `YYYY-MM-DD HH:MM`.")
+        await ctx.send(
+            "Please use the correct format for the date: `YYYY-MM-DD HH:MM`.")
 
 
-async def handle_reminder(user_id: int, reminder_time: datetime, reminder_message: str):
+async def handle_reminder(user_id: int, reminder_time: datetime,
+                          reminder_message: str):
     try:
         now = datetime.now(tz=ZoneInfo("Asia/Singapore"))
         time_diff = (reminder_time - now).total_seconds()
@@ -125,9 +134,12 @@ async def handle_reminder(user_id: int, reminder_time: datetime, reminder_messag
         channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
         if channel and isinstance(channel, discord.TextChannel):
             owner = await bot.fetch_user(OWNER_ID)
-            await channel.send(f"{owner.mention}, Reminder: {reminder_message}")
+            await channel.send(f"{owner.mention}, Reminder: {reminder_message}"
+                               )
         else:
-            print(f"Channel with ID {GENERAL_CHAT_CHANNEL_ID} not found or is not a TextChannel.")
+            print(
+                f"Channel with ID {GENERAL_CHAT_CHANNEL_ID} not found or is not a TextChannel."
+            )
 
     except asyncio.CancelledError:
         print(f"Reminder for user {user_id} was cancelled.")
@@ -135,12 +147,14 @@ async def handle_reminder(user_id: int, reminder_time: datetime, reminder_messag
         # Clean up after the task finishes or is cancelled
         reminders = active_reminders.get(user_id)
         if reminders:
-            active_reminders[user_id] = [r for r in reminders if r["reminder_time"] != reminder_time]
+            active_reminders[user_id] = [
+                r for r in reminders if r["reminder_time"] != reminder_time
+            ]
             if not active_reminders[user_id]:
                 active_reminders.pop(user_id)
 
 
-@bot.command(name="clrreminder")
+@bot.command(name="clrreminder", help='Clear all your active reminders.')
 @commands.is_owner()
 async def clear_reminder(ctx):
     reminders = active_reminders.get(ctx.author.id)
@@ -166,20 +180,19 @@ async def get_reminder(ctx):
         await ctx.send("You don’t have any active reminders.")
         return
 
-    embed = discord.Embed(title="📅 Your Active Reminders", color=discord.Color.green())
+    embed = discord.Embed(title="📅 Your Active Reminders",
+                          color=discord.Color.green())
 
     now = datetime.now(tz=ZoneInfo("Asia/Singapore"))
     for i, reminder in enumerate(reminders, start=1):
         time_left = reminder["reminder_time"] - now
         embed.add_field(
             name=f"Reminder #{i}",
-            value=(
-                f"📅 Time: {reminder['reminder_time'].strftime('%Y-%m-%d %H:%M %Z')}\n"
-                f"⏳ In: {str(time_left).split('.')[0]}\n"
-                f"📝 Message: {reminder['message']}"
-            ),
-            inline=False
-        )
+            value=
+            (f"📅 Time: {reminder['reminder_time'].strftime('%Y-%m-%d %H:%M %Z')}\n"
+             f"⏳ In: {str(time_left).split('.')[0]}\n"
+             f"📝 Message: {reminder['message']}"),
+            inline=False)
 
     await ctx.send(embed=embed)
 
@@ -187,7 +200,7 @@ async def get_reminder(ctx):
 # -------------------
 # %post
 # -------------------
-@bot.command(name="post")
+@bot.command(name="post", help='Post a message on behalf of Duckie to a specified channel by ID.')
 @commands.is_owner()
 async def post(ctx, channel_id: int, *, message: str):
     """
@@ -215,20 +228,24 @@ async def set_playing(ctx, *, status_message: str):
 @bot.command(name="setlistening")
 @commands.is_owner()
 async def set_listening(ctx, *, status_message: str):
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=status_message))
+    await bot.change_presence(activity=discord.Activity(
+        type=discord.ActivityType.listening, name=status_message))
     await ctx.send(f"Bot is now listening to: {status_message}")
+
 
 @bot.command(name="setwatching")
 @commands.is_owner()
 async def set_watching(ctx, *, status_message: str):
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=status_message))
+    await bot.change_presence(activity=discord.Activity(
+        type=discord.ActivityType.watching, name=status_message))
     await ctx.send(f"Bot is now watching: {status_message}")
 
 
 @bot.command(name="setstreaming")
 @commands.is_owner()
 async def set_streaming(ctx, url: str, *, status_message: str):
-    await bot.change_presence(activity=discord.Streaming(name=status_message, url=url))
+    await bot.change_presence(
+        activity=discord.Streaming(name=status_message, url=url))
     await ctx.send(f"Bot is now streaming: {status_message}")
 
 
@@ -266,15 +283,16 @@ async def sticker_command(ctx):
 # -------------------
 # %ask
 # -------------------
-@bot.command(name='ask',help='Ask the duckie anything - no guarantees you’ll like the answer.')
+@bot.command(name='ask', help='Ask the duckie anything - no guarantees you’ll like the answer.')
 async def ask_command(ctx, *, question: str):
     question = question.lower()
 
     categories = {
         "yes_no": {
             "keywords": [
-                "is", "are", "was", "were", "do", "does", "can", "will", "should",
-                "would", "have", "did", "could", "has", "had", "may", "might", "must"
+                "is", "are", "was", "were", "do", "does", "can", "will",
+                "should", "would", "have", "did", "could", "has", "had", "may",
+                "might", "must"
             ],
             "responses": [
                 "Yes. No. Maybe. I don't know. Can you repeat the question?",
@@ -291,8 +309,8 @@ async def ask_command(ctx, *, question: str):
         },
         "deep": {
             "keywords": [
-                "meaning", "life", "love", "why", "purpose", "feel",
-                "exist", "soul", "sad", "truth"
+                "meaning", "life", "love", "why", "purpose", "feel", "exist",
+                "soul", "sad", "truth"
             ],
             "responses": [
                 "Ah, the big questions. I’d answer, but then I’d have to cry.",
@@ -309,8 +327,8 @@ async def ask_command(ctx, *, question: str):
         },
         "silly": {
             "keywords": [
-                "fart", "poop", "banana", "goose", "quack", "duck",
-                "noodle", "joke", "meme", "lol"
+                "fart", "poop", "banana", "goose", "quack", "duck", "noodle",
+                "joke", "meme", "lol"
             ],
             "responses": [
                 "Quack quack... you summoned the nonsense lord?",
@@ -327,8 +345,8 @@ async def ask_command(ctx, *, question: str):
         },
         "tech": {
             "keywords": [
-                "discord", "bot", "code", "python", "error", "ai",
-                "server", "login", "bug", "crash"
+                "discord", "bot", "code", "python", "error", "ai", "server",
+                "login", "bug", "crash"
             ],
             "responses": [
                 "Did you try turning it off and on again?",
@@ -390,6 +408,66 @@ async def ask_command(ctx, *, question: str):
 
     response = random.choice(categories[best_match]["responses"])
     await ctx.send(response)
+
+
+# -------------------
+# fun text related
+# -------------------
+@bot.command(name='figlet', help='Turns your text into ASCII art.')
+async def figlet(ctx, *, text):
+    ascii_art = pyfiglet.figlet_format(text)
+    # Discord message limit is 2000 chars, so we trim if needed
+    if len(ascii_art) > 1990:
+        ascii_art = ascii_art[:1990] + "..."
+    await ctx.send(f"```\n{ascii_art}\n```")
+
+
+@bot.command(name='emojify', help='Turns your text into emojis.')
+async def emojify(ctx, *, text):
+    emoji_text = ""
+    for char in text.lower():
+        if char.isalpha():
+            emoji_text += f":regional_indicator_{char}:"
+        elif char == " ":
+            emoji_text += "  "
+        else:
+            emoji_text += char
+    await ctx.send(emoji_text)
+
+
+# -------------------
+# %flip
+# -------------------
+@bot.command(name='flip', help='Flips a coin.')
+async def flip(ctx):
+    result = random.choice(["Heads", "Tails"])
+    await ctx.send(f"🪙 You flipped: {result}")
+
+
+# -------------------
+# %wiki
+# -------------------
+@bot.command(name='wiki', help='Searches Wikipedia for the given term.')
+async def wiki(ctx, *, search_term):
+    try:
+        summary = wikipedia.summary(search_term, sentences=3)
+        page = wikipedia.page(search_term)
+
+        embed = discord.Embed(
+            title=page.title,
+            url=page.url,
+            description=summary,
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text="Source: Wikipedia")
+
+        await ctx.send(embed=embed)
+
+    except wikipedia.exceptions.DisambiguationError as e:
+        options = e.options[:5]  # Show top 5 options
+        await ctx.send("⚠️ Too many results. Try being more specific. Options:\n- " + "\n- ".join(options))
+    except Exception:
+        await ctx.send("❌ Couldn't find anything for that query.")
 
 
 # -------------------
@@ -519,7 +597,7 @@ lower_bound = 10800  # default 3 hours
 upper_bound = 21600  # default 6 hours
 
 
-@bot.command(name='setquoteint')
+@bot.command(name='setquoteint', help='Set the lower bound and upper bound for random quotes')
 @commands.is_owner()
 async def setquoteint(ctx, lower: int, upper: int):
     """Set the time interval for random quotes"""
@@ -531,10 +609,12 @@ async def setquoteint(ctx, lower: int, upper: int):
 
     lower_bound = lower
     upper_bound = upper
-    await ctx.send(f"Quote interval updated! Lower bound: {lower_bound} seconds, Upper bound: {upper_bound} seconds.")
+    await ctx.send(
+        f"Quote interval updated! Lower bound: {lower_bound} seconds, Upper bound: {upper_bound} seconds."
+    )
 
 
-@bot.command(name='getquoteint')
+@bot.command(name='getquoteint', help='Get the lower bound and upper bound for random quotes')
 @commands.is_owner()
 async def getquoteint(ctx):
     """Get the current time interval for random quotes"""
@@ -605,7 +685,8 @@ async def birthday_check():
                 if isinstance(channel, TextChannel):
                     await channel.send(message)
                 else:
-                    print("Channel is not a text channel - cannot send message.")
+                    print(
+                        "Channel is not a text channel - cannot send message.")
             except Exception as e:
                 print(f"Failed to send birthday message for {user_id}: {e}")
 

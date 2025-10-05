@@ -439,10 +439,10 @@ async def emojify(ctx, *, text):
 
 
 # -------------------
-# %flip
+# %toss coin
 # -------------------
-@bot.command(name='flip', help='Flips a coin.')
-async def flip(ctx):
+@bot.command(name='tosscoin', help='Toss a coin.')
+async def tosscoin(ctx):
     result = random.choice(["Heads", "Tails"])
     await ctx.send(f"🪙 You flipped: {result}")
 

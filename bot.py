@@ -589,12 +589,37 @@ quotes = [
     "Quack me up, I’m hilarious.",
     "What did the duck say to the duckling? ‘Stop following me around, I need some space!’",
     "The early bird might get the worm, but the duck gets the bread crumbs.",
-    "Quack, quack, here comes the snack."
+    "Quack, quack, here comes the snack.",
+
+    # Snoopy theme
+    "My life has no purpose, no direction, no aim, no meaning... and yet I'm happy. I can't figure it out. What am I doing right?",
+    "I think I'm allergic to mornings.",
+    "I haven’t even started yet and I’m already tired.",
+    "Yesterday I was a dog. Today I'm a dog. Tomorrow I'll probably still be a dog. Sigh... there’s so little hope for advancement.",
+    "To live is to dance… to dance is to live!",
+    "Sometimes I lie awake at night and ask, 'Why me?' Then a voice answers, 'Nothing personal… your name just happened to come up.'",
+    "I don't have time to worry about who doesn't like me — I'm too busy loving the people who love me!",
+    "My brain: 97% food thoughts. 3% random regrets.",
+    "Keep looking up… that’s the secret of life. (Unless it’s raining - then go back to bed.)",
+    "I’m not lazy. I’m on energy-saving mode.",
+    "I’m not lazy. I’m just highly motivated to do nothing.",
+    "I could be a morning person… if morning started at noon.",
+    "Exercise? I thought you said ‘extra fries’.",
+    "I hate when my bed is suddenly far away from me in the morning.",
+    "My people skills are fine. It’s my tolerance for humans that needs work.",
+    "If you can’t convince them, confuse them.",
+    "I’m not bossy. I just know what you should be doing.",
+    "Some days, even my lucky socks don’t help.",
+    "Happiness is a nap and a snack.",
+    "Keep calm and wag on.",
+    "Why fit in when you were born to nap?",
+    "The less you care, the more peaceful your life becomes.",
+    "I’ve decided I’m not old. I’m 25 plus shipping and handling."
 ]
 
 # Global variables to store the wait time bounds
-lower_bound = 10800  # default 3 hours
-upper_bound = 21600  # default 6 hours
+lower_bound = 21600  # default 6 hours
+upper_bound = 32400  # default 9 hours
 
 
 @bot.command(name='setquoteint', help='Set the lower bound and upper bound for random quotes')

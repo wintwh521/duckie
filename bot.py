@@ -18,12 +18,15 @@ from discord import TextChannel
 from discord.ext import commands, tasks
 from discord.ext.commands import is_owner
 
+from emoji_animations import setup_emoji_commands
+
 load_dotenv()
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='%', intents=intents, help_command=None)
+setup_emoji_commands(bot)
 
 OWNER_ID = 507919534439530496
 GENERAL_CHAT_CHANNEL_ID = 1419902888494239785

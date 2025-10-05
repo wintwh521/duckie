@@ -483,6 +483,10 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
+    # Skip enlarging if it's a command (starts with %)
+    if message.content.startswith('%'):
+        return
+
     custom_emoji_pattern = r'<(a?):(\w+):(\d+)>'
     custom_emojis = re.findall(custom_emoji_pattern, message.content)
 

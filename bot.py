@@ -700,7 +700,7 @@ birthdays = {
 
 @tasks.loop(hours=24)
 async def birthday_check():
-    today = datetime.now().strftime("%m-%d")
+    today = datetime.now(tz=ZoneInfo("Asia/Singapore")).strftime("%m-%d")
     channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
 
     if channel is None:

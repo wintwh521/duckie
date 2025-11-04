@@ -30,7 +30,7 @@ setup_emoji_commands(bot)
 
 OWNER_ID = 507919534439530496
 GENERAL_CHAT_CHANNEL_ID = 1419902888494239785
-
+post_quotes_enabled = False
 
 # -------------------
 # ✅ BOT READY
@@ -654,23 +654,53 @@ async def getquoteint(ctx):
 
 
 async def post_random_quote():
+    global post_quotes_enabled
     while True:
-        # Choose a random quote
-        quote = random.choice(quotes)
+        if post_quotes_enabled:
+            # Choose a random quote
+            quote = random.choice(quotes)
 
-        channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
+            channel = bot.get_channel(GENERAL_CHAT_CHANNEL_ID)
 
-        if channel:
-            if isinstance(channel, TextChannel):
-                await channel.send(quote)
+            if channel:
+                if isinstance(channel, TextChannel):
+                    await channel.send(quote)
+                else:
+                    print("Channel is not a text channel - cannot send message.")
             else:
-                print("Channel is not a text channel - cannot send message.")
-        else:
-            print("No 'general' channel found.")
+                print("No 'general' channel found.")
 
-        # Wait for a random amount of time
-        wait_time = random.randint(lower_bound, upper_bound)
-        await asyncio.sleep(wait_time)
+            # Wait for a random amount of time
+            wait_time = random.randint(lower_bound, upper_bound)
+            await asyncio.sleep(wait_time)
+        else:
+            await asyncio.sleep(30)
+
+
+# -------------------
+# 🟢 COMMAND TO TURN QUOTES ON/OFF
+# -------------------
+@bot.command(name="quotes")
+@commands.is_owner()
+async def toggle_quotes(ctx, state: str = None):
+    """
+    Usage: %quotes on/off/status
+    """
+    global post_quotes_enabled
+
+    if state is None or state.lower() == "status":
+        status = "enabled ✅" if post_quotes_enabled else "disabled ❌"
+        await ctx.send(f"📜 Random quotes are currently **{status}**.")
+        return
+
+    if state.lower() == "on":
+        post_quotes_enabled = True
+        await ctx.send("✅ Random quote posting is now **enabled**.")
+    elif state.lower() == "off":
+        post_quotes_enabled = False
+        await ctx.send("🚫 Random quote posting is now **disabled**.")
+    else:
+        await ctx.send("Usage: `%quotes on/off/status`.")
 
 
 # -------------------

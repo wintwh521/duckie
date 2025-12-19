@@ -219,6 +219,27 @@ async def post(ctx, channel_id: int, *, message: str):
 
 
 # -------------------
+# %playsound
+# -------------------
+@bot.command(name="playsound", help='Post specific mp3 file.')
+async def playsound(ctx, name):
+    path = f"audio/{name}.mp3"
+    if os.path.exists(path):
+        await ctx.send(file=discord.File(path))
+    else:
+        await ctx.send("❌ Audio not found.")
+
+
+@bot.command(name="listsound", help='List all available mp3 file.')
+async def listsound(ctx):
+    files = [f[:-4] for f in os.listdir("audio") if f.endswith(".mp3")]
+    if files:
+        await ctx.send("🎵 Available audios:\n" + ", ".join(files))
+    else:
+        await ctx.send("No audio files found.")
+
+
+# -------------------
 # set bot's presence
 # -------------------
 @bot.command(name="setplaying")

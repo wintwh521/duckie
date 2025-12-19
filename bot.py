@@ -205,17 +205,36 @@ async def get_reminder(ctx):
 # -------------------
 @bot.command(name="post", help='Post a message on behalf of Duckie to a specified channel by ID.')
 @commands.is_owner()
-async def post(ctx, channel_id: int, *, message: str):
+async def post(ctx, channel_id: int, user_id: int | None = None, *, message: str):
     """
     Bot sends message to a specified channel by ID.
     Usage: %post 123456789012345678 Hello everyone!
     """
     channel = bot.get_channel(channel_id)
+
+    """
     if channel and isinstance(channel, discord.TextChannel):
         await channel.send(message)
         await ctx.send(f"Message sent to {channel.mention}")
     else:
         await ctx.send("Invalid channel ID.")
+    if not channel or not isinstance(channel, discord.TextChannel):
+        await ctx.send("Invalid channel ID.")
+        return
+    """
+
+    final_message = message
+
+    if user_id:
+        user = bot.get_user(user_id) or await bot.fetch_user(user_id)
+        if user:
+            final_message = f"{user.mention} {message}"
+        else:
+            await ctx.send("Invalid user ID.")
+            return
+
+    await channel.send(final_message)
+    await ctx.send(f"Message sent to {channel.mention}")
 
 
 # -------------------

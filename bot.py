@@ -31,16 +31,25 @@ setup_emoji_commands(bot)
 OWNER_ID = 507919534439530496
 GENERAL_CHAT_CHANNEL_ID = 1419902888494239785
 post_quotes_enabled = False
+tasks_started = False
+quote_task = None
 
 # -------------------
 # ✅ BOT READY
 # -------------------
 @bot.event
 async def on_ready():
+    global tasks_started, quote_task
+    
     print(f'{bot.user} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} guilds')
-    birthday_check.start()
-    bot.loop.create_task(post_random_quote())
+    #birthday_check.start()
+    #bot.loop.create_task(post_random_quote())
+
+    if not tasks_started:
+        birthday_check.start()
+        quote_task = bot.loop.create_task(post_random_quote())
+        tasks_started = True
 
     # Set the bot's presence to "Watching duck videos"
     activity = discord.Activity(type=discord.ActivityType.watching,
@@ -822,7 +831,7 @@ def keep_alive():
 
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 if TOKEN:
-    keep_alive()
+    # keep_alive()
     bot.run(TOKEN)
 else:
     print('ERROR: DISCORD_BOT_TOKEN not found in environment variables')

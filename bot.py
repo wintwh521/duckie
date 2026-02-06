@@ -62,7 +62,7 @@ async def on_ready():
 
     if not tasks_started:
         birthday_check.start()
-        quote_task = bot.loop.create_task(post_random_quote())
+        # quote_task = bot.loop.create_task(post_random_quote())
         tasks_started = True
 
     # Set the bot's presence to "Watching duck videos"

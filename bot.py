@@ -6,6 +6,8 @@ import difflib
 from threading import Thread
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import requests
 import pyfiglet
@@ -20,6 +22,18 @@ from discord.ext.commands import is_owner
 
 from emoji_animations import setup_emoji_commands
 
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+def start_http_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    server.serve_forever()
+    
 load_dotenv()
 
 intents = discord.Intents.default()
@@ -829,11 +843,18 @@ def keep_alive():
 # ✅ START BOT
 # -------------------
 
-TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-if TOKEN:
-    # keep_alive()
-    bot.run(TOKEN)
-else:
-    print('ERROR: DISCORD_BOT_TOKEN not found in environment variables')
-    print(
-        'Please set your Discord bot token using the DISCORD_BOT_TOKEN secret')
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+if not TOKEN:
+    raise RuntimeError("DISCORD_BOT_TOKEN is missing")
+
+threading.Thread(target=start_http_server, daemon=True).start()
+bot.run(TOKEN)
+
+#TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+#if TOKEN:
+#    keep_alive()
+#    bot.run(TOKEN)
+#else:
+#    print('ERROR: DISCORD_BOT_TOKEN not found in environment variables')
+#    print(
+#        'Please set your Discord bot token using the DISCORD_BOT_TOKEN secret')

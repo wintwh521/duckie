@@ -13,7 +13,7 @@ import requests
 import pyfiglet
 import wikipedia
 from dotenv import load_dotenv
-from flask import Flask
+#from flask import Flask
 
 import discord
 from discord import TextChannel
@@ -820,6 +820,7 @@ async def birthday_check():
 # ✅ KEEP-ALIVE SERVER
 # -------------------
 
+"""
 app = Flask('')
 
 
@@ -837,7 +838,7 @@ def run_web():
 def keep_alive():
     t = Thread(target=run_web)
     t.start()
-
+"""
 
 # -------------------
 # ✅ START BOT

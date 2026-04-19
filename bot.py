@@ -231,7 +231,7 @@ async def get_reminder(ctx):
 # -------------------
 # %post
 # -------------------
-@bot.command(name="post", help='Post a message on behalf of Duckie to a specified channel by ID.')
+@bot.command(name="post", help='Post a message on behalf of Duckie to a specified channel by ID. Format: %post [channelID] [userID] [message]')
 @commands.is_owner()
 async def post(ctx, channel_id: int, user_id: int | None = None, *, message: str):
     """
@@ -289,14 +289,14 @@ async def listsound(ctx):
 # -------------------
 # set bot's presence
 # -------------------
-@bot.command(name="setplaying")
+@bot.command(name="setplaying", help='Set bot\'s presence: playing. Format: %setplaying [status]')
 @commands.is_owner()
 async def set_playing(ctx, *, status_message: str):
     await bot.change_presence(activity=discord.Game(name=status_message))
     await ctx.send(f"Bot is now playing: {status_message}")
 
 
-@bot.command(name="setlistening")
+@bot.command(name="setlistening", help='Set bot\'s presence: listening. Format: %setlistening [status]')
 @commands.is_owner()
 async def set_listening(ctx, *, status_message: str):
     await bot.change_presence(activity=discord.Activity(
@@ -304,7 +304,7 @@ async def set_listening(ctx, *, status_message: str):
     await ctx.send(f"Bot is now listening to: {status_message}")
 
 
-@bot.command(name="setwatching")
+@bot.command(name="setwatching", help='Set bot\'s presence: watching. Format: %setwatching [status]')
 @commands.is_owner()
 async def set_watching(ctx, *, status_message: str):
     await bot.change_presence(activity=discord.Activity(
@@ -312,7 +312,7 @@ async def set_watching(ctx, *, status_message: str):
     await ctx.send(f"Bot is now watching: {status_message}")
 
 
-@bot.command(name="setstreaming")
+@bot.command(name="setstreaming", help='Set bot\'s presence: streaming. Format: %setstreaming [status]')
 @commands.is_owner()
 async def set_streaming(ctx, url: str, *, status_message: str):
     await bot.change_presence(
@@ -354,7 +354,7 @@ async def sticker_command(ctx):
 # -------------------
 # %ask
 # -------------------
-@bot.command(name='ask', help='Ask the duckie anything - no guarantees you’ll like the answer.')
+@bot.command(name='ask', help='Ask the duckie anything - no guarantees you\'ll like the answer. Format: %ask [question]'')
 async def ask_command(ctx, *, question: str):
     question = question.lower()
 
@@ -484,7 +484,7 @@ async def ask_command(ctx, *, question: str):
 # -------------------
 # fun text related
 # -------------------
-@bot.command(name='figlet', help='Turns your text into ASCII art.')
+@bot.command(name='figlet', help='Turns your text into ASCII art. Format: %figlet [text]')
 async def figlet(ctx, *, text):
     ascii_art = pyfiglet.figlet_format(text)
     # Discord message limit is 2000 chars, so we trim if needed
@@ -493,7 +493,7 @@ async def figlet(ctx, *, text):
     await ctx.send(f"```\n{ascii_art}\n```")
 
 
-@bot.command(name='emojify', help='Turns your text into emojis.')
+@bot.command(name='emojify', help='Turns your text into emojis. Format: %emojify [text]')
 async def emojify(ctx, *, text):
     emoji_text = ""
     for char in text.lower():
@@ -518,7 +518,7 @@ async def tosscoin(ctx):
 # -------------------
 # %wiki
 # -------------------
-@bot.command(name='wiki', help='Searches Wikipedia for the given term.')
+@bot.command(name='wiki', help='Searches Wikipedia for the given term. Format: %wiki [search]')
 async def wiki(ctx, *, search_term):
     try:
         summary = wikipedia.summary(search_term, sentences=3)
@@ -697,7 +697,7 @@ lower_bound = 21600  # default 6 hours
 upper_bound = 32400  # default 9 hours
 
 
-@bot.command(name='setquoteint', help='Set the lower bound and upper bound for random quotes')
+@bot.command(name='setquoteint', help='Set the lower bound and upper bound interval in second for random quotes. Format: %setquoteint [lower] [upper]')
 @commands.is_owner()
 async def setquoteint(ctx, lower: int, upper: int):
     """Set the time interval for random quotes"""

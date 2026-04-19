@@ -354,7 +354,7 @@ async def sticker_command(ctx):
 # -------------------
 # %ask
 # -------------------
-@bot.command(name='ask', help='Ask the duckie anything - no guarantees you\'ll like the answer. Format: %ask [question]'')
+@bot.command(name='ask', help='Ask the duckie anything - no guarantees you\'ll like the answer. Format: %ask [question]')
 async def ask_command(ctx, *, question: str):
     question = question.lower()
 
